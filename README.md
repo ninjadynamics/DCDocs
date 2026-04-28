@@ -2,6 +2,10 @@
 > Research, Architecture, and Implementation  
 > [GLdc Performance Modifications](gldc_performance_modifications.md) – Deep dive into GLdc bottlenecks and optimizations  
 > [raylib Dreamcast Batcher](raylib_dreamcast_batcher.md) – Design and implementation of the batching layer
+>  
+> Repositories  
+> [GLdc fork](https://www.github.com/ninjadynamics/GLdc)  
+> [raylib fork](https://github.com/ninjadynamics/raylib/tree/experimental)
 
 # 1. Executive Summary
 
