@@ -1,5 +1,9 @@
 # Dreamcast Rendering Performance Optimization Overview
-> Research, Architecture, and Implementation  
+> Initial Research and Implementation Plan  
+> [ChatGPT Deep Research - Investigation](deep-research-investigation.md) – Analysis of the full rendering pipeline, bottlenecks, and constraints on Dreamcast  
+> [ChatGPT Deep Research - Implementation Plan](deep-research-implementation-plan.md) – Proposed optimization strategy, architecture, and practical steps  
+>
+> Claude's Implementation  
 > [GLdc Performance Modifications](gldc_performance_modifications.md) – Deep dive into GLdc bottlenecks and optimizations  
 > [raylib Dreamcast Batcher](raylib_dreamcast_batcher.md) – Design and implementation of the batching layer
 >  
