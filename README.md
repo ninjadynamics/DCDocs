@@ -4,8 +4,7 @@
 > [raylib Dreamcast Batcher](raylib_dreamcast_batcher.md) – Design and implementation of the batching layer
 >  
 > Repositories  
-> [GLdc fork](https://www.github.com/ninjadynamics/GLdc/tree/master)  
-> [raylib fork](https://github.com/ninjadynamics/raylib/tree/experimental)
+> [GLdc fork](https://www.github.com/ninjadynamics/GLdc/tree/master) | [raylib fork](https://github.com/ninjadynamics/raylib/tree/experimental)
 
 # 1. Executive Summary
 
