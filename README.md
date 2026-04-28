@@ -1,5 +1,8 @@
 # Dreamcast Rendering Performance Optimization Overview
-> Research, Architecture, and Implementation
+> Research, Architecture, and Implementation  
+> [GLdc Performance Modifications](gldc_performance_modifications.md) – Deep dive into GLdc bottlenecks and optimizations  
+> [raylib Dreamcast Batcher](raylib_dreamcast_batcher.md) – Design and implementation of the batching layer
+
 # 1. Executive Summary
 
 The Sega Dreamcast’s Hitachi SH4 processor runs at 200 MHz with 16 MB of main RAM. Its PowerVR CLX2 GPU uses a tile-based deferred renderer that expects geometry submitted as sorted polygon lists with pre-built headers. The rendering stack for raylib on Dreamcast is: game code → raylib helpers → rlgl → GLdc (OpenGL 1.x implementation) → KOS (KallistiOS) → PVR hardware.
