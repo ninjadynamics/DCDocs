@@ -156,7 +156,6 @@ If the game uses a texture atlas (single texture containing multiple sprites), t
 | --- | --- | --- |
 | rlgl_dc_batch.h | New | Self-contained Dreamcast batcher + deferred unbind + stats |
 | rlgl.h | Modified | Batcher integration at 28+ points via PLATFORM_DREAMCAST guards |
-| patch_rlgl_v5.py | Tool | Automated patcher for rlgl.h v5.0, performs 11 targeted replacements |
 
 ## 9.2 GLdc Side
 
