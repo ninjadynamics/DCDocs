@@ -1,7 +1,7 @@
 # Dreamcast Rendering Performance Optimization Overview
 > Initial Research and Implementation Plan  
-> [ChatGPT Deep Research - Investigation](deep-research-investigation.pdf) – Full rendering pipeline, bottlenecks, and constraints on Dreamcast  
-> [ChatGPT Deep Research - Implementation Plan](deep-research-implementation-plan.pdf) – Optimization strategy, architecture, and practical steps  
+> [ChatGPT Deep Research - Investigation](deep-research-investigation.md) – Full rendering pipeline, bottlenecks, and constraints on Dreamcast  
+> [ChatGPT Deep Research - Implementation Plan](deep-research-implementation.md) – Optimization strategy, architecture, and practical steps  
 >
 > Claude's Implementation  
 > [GLdc Performance Modifications](gldc_performance_modifications.md) – Deep dive into GLdc bottlenecks and optimizations  
