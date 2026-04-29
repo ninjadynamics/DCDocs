@@ -1,4 +1,4 @@
-# Dreamcast Rendering Performance Optimization Overview
+# Raylib/GLdc Dreamcast Rendering Optimizations
 
 > Initial Research and Implementation Plan  
 > [ChatGPT Deep Research - Investigation](deep-research-investigation.md) – Full rendering pipeline, bottlenecks, and constraints on Dreamcast  
