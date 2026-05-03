@@ -11,7 +11,7 @@
 > Implementation history:  
 > [Patch Reference (A–E)](patch_reference.md) – Detailed description of all patches including strip pipeline  
 > [Changelog / Post-Batcher Work](changelog.md) – What was added after the batcher (dcmesh, runtime, hooks)
-> [Sh4zam Integration(sh4zam_integration.md) - what was replaced and what wasn't (and why)
+> [Sh4zam Integration](sh4zam_integration.md) – what was replaced and what wasn't (and why)
 >
 > Repositories  
 > [GLdc fork](https://www.github.com/ninjadynamics/GLdc/tree/master) | [raylib fork](https://github.com/ninjadynamics/raylib/tree/experimental) | [dcmesh converter](https://github.com/ninjadynamics/dcmesh)
