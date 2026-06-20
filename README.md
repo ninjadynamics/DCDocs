@@ -11,7 +11,7 @@
 > Implementation history:  
 > [Patch Reference (A–E)](patch_reference.md) – Detailed description of all patches including strip pipeline  
 > [Changelog / Post-Batcher Work](changelog.md) – What was added after the batcher (dcmesh, runtime, hooks)  
-> [Current Fork Snapshot](fork_snapshot_2026_06.md) – June 2026 state of raylib-dc, GLdc, and dcmesh after implementation
+> [Current Fork Snapshot](fork_snapshot_2026_06.md) – June 2026 state of raylib-dc, GLdc, and dcmesh after implementation  
 > [Sh4zam Integration](sh4zam_integration.md) – What was replaced and what wasn't (and why)  
 >
 > Repositories  
