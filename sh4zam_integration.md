@@ -4,7 +4,9 @@
 
 [SH4ZAM](https://github.com/gyrovorbis/sh4zam) is a hand-optimized math and linear algebra library for the Sega Dreamcast's SH4 CPU. It provides hardware-accelerated replacements for common floating-point operations using the SH4's dedicated instructions: `FTRV` (4D vector × 4×4 matrix transform), `FIPR` (4D dot product), `FSRRA` (reciprocal square root), and `FSCA` (sine/cosine). SH4ZAM is an official part of [kos-ports](https://github.com/KallistiOS/kos-ports) and was originally developed for the GTA III and Vice City Dreamcast ports.
 
-This document describes the optional integration of SH4ZAM into the [raylib](https://github.com/ninjadynamics/raylib/tree/experimental) and [GLdc](https://github.com/ninjadynamics/GLdc/tree/master) forks. All changes are compile-time optional behind `#ifdef USE_SH4ZAM`. Without the define, the code compiles identically to before.
+This document describes the optional integration of SH4ZAM into the [raylib](https://github.com/ninjadynamics/raylib/tree/master) and [GLdc](https://github.com/ninjadynamics/GLdc/tree/master) forks. All changes are compile-time optional behind `#ifdef USE_SH4ZAM`. Without the define, the code compiles identically to before.
+
+Current status: useful pieces are implemented, but SH4ZAM coverage is not complete. The June 2026 follow-up plan treats SH4ZAM as a staged optimization program with hardware verification after each tier.
 
 ## What SH4ZAM Replaces
 
@@ -12,10 +14,11 @@ This document describes the optional integration of SH4ZAM into the [raylib](htt
 
 | Function | Original | SH4ZAM replacement | Why it helps |
 |---|---|---|---|
-| `MatrixMultiply` | 64 scalar multiply-adds | `shz_mat4x4_mult` (4× FTRV) | Camera, model transforms, DCMesh pipeline |
+| `MatrixMultiply` | 64 scalar multiply-adds | `shz_xmtrx_load_apply_store_unaligned_4x4` | Camera, model transforms, DCMesh pipeline |
 | `MatrixInvert` | ~50 scalar ops (Cramer's rule) | `shz_mat4x4_inverse` | Camera setup, inverse transforms |
 | `Vector3Normalize` | `sqrtf` + divide | `shz_vec3_normalize_safe` (FIPR + FSRRA) | Per-object direction/normal math |
-| `Vector3Transform` | 12 scalar multiply-adds | `shz_xmtrx_load_4x4` + `shz_xmtrx_transform_vec4` (FTRV) | Coordinate transforms |
+| `Vector3Transform` | 12 scalar multiply-adds | `shz_xmtrx_load_unaligned_4x4` + `shz_xmtrx_transform_vec4` (FTRV) | Coordinate transforms |
+| `MatrixRotateX/Y/Z` | scalar sin/cos matrix construction | `shz_mat4x4_init_rotation_x/y/z` | Frequent simple rotation matrices |
 | `QuaternionNormalize` | `sqrtf` + divide | `shz_vec4_normalize` (FIPR + FSRRA) | Animation, rotation blending |
 
 ### In GLdc (`GL/matrix.c`)
@@ -24,11 +27,12 @@ This document describes the optional integration of SH4ZAM into the [raylib](htt
 |---|---|---|---|
 | `UpdateNormalMatrix` | Scalar `inverse()` + `transpose()` | `shz_mat4x4_inverse` + `shz_mat4x4_transpose` | Called every modelview change when lighting is active |
 
-### What Was NOT Replaced
+### Current Limits and Corrections
 
-- **`glRotatef` trig** — Already uses KOS `fsincos()` (SH4 FSCA instruction) under `_arch_dreamcast`. No improvement possible.
-- **GLdc per-vertex transforms** (`transform()` in `draw.c`) — Already uses inline `ftrv xmtrx` assembly via KOS `mat_trans_single3_nodiv`. SH4ZAM wraps the same instruction; replacing it would be a lateral move.
-- **GLdc matrix stack operations** (`_glMultMatrix` → `UploadMatrix4x4` / `MultiplyMatrix4x4`) — Already uses KOS `mat_load` / `mat_apply` which are XMTRX-based. Already hardware-accelerated.
+- **`rlRotatef` / `glRotatef` are still follow-up targets.** The current plan says direct SH4ZAM XMTRX rotation helpers may avoid matrix construction and memory round-trips.
+- **GLdc per-vertex transforms already use FTRV-style hardware instructions.** Replacing only that inner transform with a SH4ZAM wrapper may be lateral unless profiling shows a concrete win.
+- **GLdc matrix stack operations are not considered complete.** Older notes treated KOS `mat_load` / `mat_apply` as "already hardware-accelerated enough." The current follow-up plan corrects that: KOS and SH4ZAM can use similar hardware but still differ in scheduling, prefetch, and FPU details. `_glMultMatrix`, `UploadMatrix4x4`, `MultiplyMatrix4x4`, `glLoadMatrixf`, `glMultMatrixf`, `glTranslatef`, `glScalef`, and `glRotatef` need a careful SH4ZAM audit.
+- **Composite raymath rotation helpers are still incomplete.** `MatrixRotate`, `MatrixRotateXYZ`, `MatrixRotateZYX`, and quaternion constructors still need review for SH4ZAM direct constructors or `shz_sincosf`.
 
 ## Memory Layout Compatibility
 
@@ -52,6 +56,12 @@ The named elements (`m0`–`m15`) have the same semantic meaning in both systems
 
 GLdc's `Matrix4x4` is `float[16]` in column-major order (same as SH4ZAM), so `shz_mat4x4_t*` can be cast directly from `Matrix4x4*` — no conversion needed.
 
+### Alignment Hazard
+
+On SH4, by-value raylib `Matrix` parameters may only be 4-byte aligned. Plain SH4ZAM loaders that rely on `fmov.d` can fault on real hardware when the address is not sufficiently aligned. The current fork uses unaligned-safe loaders for `Vector3Transform()` and `MatrixMultiply()` so the path remains correct even when the ABI provides weaker alignment.
+
+Future alignment work should prefer narrowly scoped fixes first: aligned scratch buffers at hot call sites, or public struct alignment only after checking ABI and interoperability risks.
+
 ### Quaternion Layout
 
 Raylib's `Quaternion` stores components as `{x, y, z, w}`.
@@ -72,16 +82,20 @@ make install clean
 
 ### Build Flags
 
-Add `-DUSE_SH4ZAM` to CFLAGS and `-lsh4zam` to LIBS for **all three** targets:
+Add `-DUSE_SH4ZAM` to CFLAGS and `-lsh4zam` to LIBS where the SH4ZAM code is compiled:
 
 **raylib** (its Makefile or your build system):
 ```makefile
+USE_SH4ZAM=1
 CFLAGS += -DUSE_SH4ZAM
+LDLIBS += -lsh4zam
 ```
 
 **GLdc** (its Makefile or your build system):
 ```makefile
+USE_SH4ZAM=ON
 CFLAGS += -DUSE_SH4ZAM
+LDLIBS += -lsh4zam
 ```
 
 **Your game**:
@@ -90,23 +104,20 @@ CFLAGS += -DUSE_SH4ZAM
 LIBS := $(RAYLIB_LINK) $(GLDC_LINK) -lkosutils -lm -lsh4zam
 ```
 
-All three must have the define. If only the game has it, the `#ifdef` blocks inside raylib's `raymath.h` and GLdc's `matrix.c` were compiled without it and contain the original scalar code.
+The define must reach each library that contains SH4ZAM `#ifdef` blocks. If only the application has it, raylib's `raymath.h` and GLdc's `matrix.c` were compiled without it and contain the original scalar/KOS paths.
 
 ### Verification
 
-Add a canary to your game's `main.c`:
+The local forks print canary messages when `USE_SH4ZAM` is enabled. For upstream-quality verification, also inspect built objects or binaries for expected symbols after each tier:
 
-```c
-static void hello_sh4zam(void) {
-#ifdef USE_SH4ZAM
-    printf(">>>>> HELLO FROM SH4ZAM!\n");
-#else
-    printf(">>>>> SH4ZAM is NOT enabled.\n");
-#endif
-}
-```
+- `shz_xmtrx_rotate`
+- `shz_sincosf`
+- `shz_xmtrx_load_4x4`
+- `shz_xmtrx_apply_4x4`
+- `shz_xmtrx_load_unaligned_4x4`
+- `shz_xmtrx_load_apply_store_unaligned_4x4`
 
-Call it early in `main()`. If you see `NOT enabled`, the define isn't reaching your compilation unit.
+Visual validation must happen on hardware. Emulator success is not enough for alignment and matrix correctness.
 
 ## Modified Files
 
@@ -124,6 +135,9 @@ Modified functions (each wraps existing body in `#ifdef USE_SH4ZAM` / `#else` / 
 - `Vector3Transform()`
 - `MatrixInvert()`
 - `MatrixMultiply()`
+- `MatrixRotateX()`
+- `MatrixRotateY()`
+- `MatrixRotateZ()`
 - `QuaternionNormalize()`
 
 ### `GLdc/GL/matrix.c`
@@ -154,9 +168,19 @@ SH4ZAM integration is independent of and complementary to the batcher and GLdc p
 
 The batcher and state coalescing patches attack the dominant bottleneck (submission overhead). SH4ZAM attacks a secondary bottleneck (scalar math cost). They stack — apply both for best results.
 
+## Follow-up Plan
+
+Work is ordered by risk and ROI:
+
+1. Replace `rlRotatef` / `glRotatef` matrix construction paths with direct SH4ZAM XMTRX rotation helpers where semantics match.
+2. Expand raymath coverage for `MatrixRotate`, `MatrixRotateXYZ`, `MatrixRotateZYX`, and quaternion constructors.
+3. Audit GLdc matrix stack operations and replace remaining KOS/scalar hot paths under `USE_SH4ZAM`.
+4. Audit 32-byte alignment, using aligned scratch buffers or public struct alignment only where safe.
+5. Replace hot Dreamcast-only `sinf`/`cosf` pairs with SH4ZAM trig helpers where correctness is clear.
+
 ## Expected Impact
 
-Modest but real. The functions replaced are called per-object or per-matrix-change, not per-vertex (GLdc's per-vertex transforms already use FTRV). Impact scales with:
+Modest but real for the already-implemented paths, with larger upside in the planned rotation and matrix-stack tiers. The functions replaced so far are called per-object or per-matrix-change, not per-vertex. Impact scales with:
 
 - Number of `MatrixMultiply` calls per frame (camera, hierarchical transforms)
 - Frequency of modelview changes with lighting active (`UpdateNormalMatrix`)
@@ -169,5 +193,5 @@ For a scene with simple camera and a few dozen objects, expect single-digit perc
 - [SH4ZAM repository](https://github.com/gyrovorbis/sh4zam)
 - [SH4ZAM documentation](https://sh4zam.falcogirgis.net/)
 - [SH4 FTRV Optimizations (Dreamcast Wiki)](https://dreamcast.wiki/SH4_FTRV_Optimizations)
-- [raylib fork (experimental branch)](https://github.com/ninjadynamics/raylib/tree/experimental)
+- [raylib fork (master branch)](https://github.com/ninjadynamics/raylib/tree/master)
 - [GLdc fork (master branch)](https://github.com/ninjadynamics/GLdc/tree/master)

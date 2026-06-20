@@ -11,10 +11,11 @@
 > Implementation history:  
 > [Patch Reference (A–E)](patch_reference.md) – Detailed description of all patches including strip pipeline  
 > [Changelog / Post-Batcher Work](changelog.md) – What was added after the batcher (dcmesh, runtime, hooks)  
+> [Current Fork Snapshot](fork_snapshot_2026_06.md) – June 2026 state of raylib-dc, GLdc, and dcmesh after implementation
 > [Sh4zam Integration](sh4zam_integration.md) – What was replaced and what wasn't (and why)  
 >
 > Repositories  
-> [GLdc fork](https://www.github.com/ninjadynamics/GLdc/tree/master) | [raylib fork](https://github.com/ninjadynamics/raylib/tree/experimental) | [dcmesh converter](https://github.com/ninjadynamics/dcmesh)
+> [GLdc fork](https://www.github.com/ninjadynamics/GLdc/tree/master) | [raylib fork](https://github.com/ninjadynamics/raylib/tree/master) | [dcmesh converter](https://github.com/ninjadynamics/dcmesh)
 
 # 1. Executive Summary
 
@@ -26,8 +27,15 @@ The implemented solution keeps game code completely untouched and adds Dreamcast
 
 * Immediate-mode batching and state coalescing (Patches A–D)
 * Strip-based mesh rendering via offline preprocessing (Patch E)
+* GLdc-side diagnostics and fast-path specialization
+* Dreamcast/KOS utility APIs for deferred fog and render-to-texture
+* Optional, still-incomplete SH4ZAM acceleration
 
 Measured result: up to 3 milliseconds saved per frame from batching alone, with additional gains for 3D mesh-heavy scenes.
+
+## 1.1 Current Fork State
+
+The June 2026 forks contain the batcher, DCMesh runtime, dcmesh converter, GLdc counters, GLdc P+UV+color fast path, punch-through blend fix, render-to-texture helpers, deferred fog helpers, and partial SH4ZAM integration. See [Current Fork Snapshot](fork_snapshot_2026_06.md) for exact repository heads and upstream cleanup notes.
 
 # 2. Research Methodology
 

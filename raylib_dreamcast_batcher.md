@@ -154,8 +154,18 @@ Access via rlDcPrintStats() and rlDcResetStats(). When stats are disabled, both 
 
 # 6. Files and Integration
 
-**rlgl_dc_batch.h** — Self-contained header file (~280 lines) containing the complete batcher implementation: data structures, vertex append, flush, deferred unbind, begin/end capture, matrix/state flush helpers, and optional stats. Included from rlgl.h after the GL 1.1 header include, guarded by PLATFORM_DREAMCAST.
+**rlgl_dc_batch.h** — Self-contained header file (~387 lines in the analyzed fork) containing the complete batcher implementation: data structures, vertex append, flush, deferred unbind, begin/end capture, matrix/state flush helpers, overflow margin, and optional stats. Included from rlgl.h after the GL 1.1 header include, guarded by PLATFORM_DREAMCAST.
 
-**rlgl.h modifications** — Applied via patch_rlgl_v5.py, which performs 11 targeted string replacements in the RLGL_IMPLEMENTATION section. All modifications are additive (inserting #if defined(PLATFORM_DREAMCAST) blocks) and do not alter any non-Dreamcast code paths. The patcher creates a .bak backup and reports exactly which patches applied.
+**rlgl.h modifications** — Integrated directly in the fork. The Dreamcast blocks intercept rlBegin/rlEnd/rlVertex/rlTexCoord/rlColor, route rlSetTexture through the batcher, flush before matrix/state changes, flush before direct array draws, and drain at frame boundaries. The changes are guarded by `PLATFORM_DREAMCAST` and do not alter non-Dreamcast code paths.
 
 **Compile flags** — PLATFORM_DREAMCAST: enables the batcher (required, already set by the DC build). RLDC_ENABLE_STATS: enables batcher stats counters (optional, zero overhead when omitted). RLDC_BATCH_CAPACITY: overrides the default 4080-vertex buffer size (optional).
+
+# 7. Related raylib-dc Work
+
+The same fork also adds Dreamcast model and texture support adjacent to the batcher:
+
+- `rlGenTextureMipmaps()` has a Dreamcast/GLdc branch for square power-of-two textures.
+- `UploadMesh()` has a GLdc/OpenGL 1.x re-upload guard for the `vboId` bookkeeping array.
+- `LoadModel()`, `UnloadModel()`, `UploadMesh()`, and `DrawMesh()` have DCMesh hooks for optional `.dcmesh` sidecars.
+
+Those changes are documented in [Changelog / Post-Batcher Work](changelog.md) and [Patch Reference](patch_reference.md).

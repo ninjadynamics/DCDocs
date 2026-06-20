@@ -20,18 +20,18 @@ Every matrix operation (`rlPushMatrix`, `rlPopMatrix`, `rlTranslatef`, `rlRotate
 **Layer:** GLdc  
 **Target:** Diagnostic visibility
 
-Per-frame counters at GLdc hook points: `glDrawArrays` calls, `glDrawElements` calls, fast-path hits/misses, headers emitted, state-dirty events, vertices transformed, bytes copied, and texture binds. Activated with `-DGLDC_ENABLE_STATS`. Designed to be added to `submitVertices()`, `generate()`, `generateElementsFastPath()`, `apply_poly_header()`, and the texture bind entry point.
+Per-frame counters at GLdc hook points: `glDrawArrays` calls, `glDrawElements` calls, `submitVertices` calls, fast-path hits/misses, headers emitted, state-dirty events, vertices transformed, texture binds, immediate-mode begin/end/vertex traffic, clipping counts, scene-list submission, strip counts, and Patch-E hits/fallbacks. Activated with `-DGLDC_ENABLE_STATS`. Added through `submitVertices()`, `generate()`, `apply_poly_header()`, immediate-mode entry points, dirty-state setters, texture binding, and SH4 scene submission/clipping code.
 
-**Status:** Designed and spec'd in the investigation. Hook points identified. Not yet committed to a public repo fork.
+**Status:** Implemented in the analyzed GLdc fork as `GL/gldc_stats.h` and `GL/gldc_stats.c`, with zero-overhead no-op macros when stats are disabled.
 
 ## Patch C — GLdc Fast-Path Widening
 
 **Layer:** GLdc  
 **Target:** Per-vertex CPU cost in `generate()`
 
-Specialized vertex generators for common raylib client-array layouts that skip generic per-attribute branching. The primary target layout is position + UV + color (no normals, no secondary UVs). Dispatches based on an attribute mask before falling back to the existing generic fast path. Reduces branchiness and memory traffic for the most common 2D/UI/sprite submission case.
+Specialized vertex generators for common raylib client-array layouts that skip generic per-attribute branching. The implemented target layout is position + UV + color (no normals, no secondary UVs), non-indexed quads and triangles. Dispatches based on an attribute mask before falling back to the existing generic fast path. Reduces branchiness and memory traffic for the most common 2D/UI/sprite submission case.
 
-**Status:** Designed and spec'd in the investigation. Not yet committed to a public repo fork.
+**Status:** Implemented in the analyzed GLdc fork as `generateArraysFastPath_PUC_QUADS()` and `generateArraysFastPath_PUC_TRIS()` in `GL/draw.c`.
 
 ## Patch D — Deferred Texture Unbinding
 
@@ -44,12 +44,14 @@ This directly targets the `rlSetTexture(id)` → draw → `rlSetTexture(0)` → 
 
 **Files:** Integrated into `src/rlgl_dc_batch.h` alongside Patch A. `rlSetTexture()` in `src/rlgl.h` routes through `rlDcSetTexture()` on Dreamcast.
 
-## Patch E — Triangle Strip Pipeline with Direct Submission
+## Patch E — Triangle Strip Pipeline and Opaque-List Routing
 
 **Layer:** raylib/src/dc_mesh.c + dc_mesh.h + dcmesh.h, and the dcmesh offline converter  
 **Target:** 3D mesh rendering overhead (DrawMesh path)
 
 A two-part system: an offline PC-side converter (`dcmesh`) that turns `.glb` models into `.dcmesh` sidecar files containing pre-computed triangle strips, and a Dreamcast runtime that loads those sidecars and renders strips via `GL_TRIANGLE_STRIP` with minimal state changes.
+
+Note on naming: the current local Patch E does not bypass GLdc with full direct-PVR submission. It routes eligible opaque DCMesh submeshes to GLdc's opaque list by temporarily disabling blending, then submits precomputed strips through `glDrawArrays(GL_TRIANGLE_STRIP, ...)`. A future direct-PVR path remains possible, but it is separate from the implemented DCMesh runtime.
 
 **Offline converter** (`dcmesh` repo): Loads `.glb` via cgltf, applies node world transforms to positions, runs `meshopt_optimizeVertexCacheStrip()` for strip-friendly index ordering, runs `meshopt_stripify()` to generate triangle strips, then pre-expands strip vertices into a de-indexed 24-byte format (position + UV + BGRA color) matching the rlgl batcher layout. Also emits a `vertex_map` array (strip vertex → original vertex index) for runtime sync. Output is a binary `.dcmesh` file (magic `DCM1`, version 2) containing per-submesh headers, vertices, strips, and vertex maps.
 
@@ -57,4 +59,14 @@ A two-part system: an offline PC-side converter (`dcmesh`) that turns `.glb` mod
 
 **Transparent routing hooks in rmodels.c:** `LoadModel()` calls `dcMeshLoadSidecar()`. `UnloadModel()` calls `dcMeshUnloadModel()`. `UploadMesh()` calls `dcMeshHandleUpload()` to sync raylib vertex/color data to strip vertices via `vertex_map`. `DrawMesh()` checks `dcMeshHasStripData()` and routes to `dcMeshDraw()`.
 
-**Files:** `src/dcmesh.h` (format definition, 112 lines), `src/dc_mesh.h` (runtime API, 85 lines), `src/dc_mesh.c` (implementation, 458 lines). Hooks in `src/rmodels.c`. Converter in separate `dcmesh` repo (426-line `dcmesh.c` + shared `dcmesh.h`).
+**Files:** `src/dcmesh.h` (format definition, 112 lines), `src/dc_mesh.h` (runtime API, 85 lines), `src/dc_mesh.c` (implementation, roughly 500 lines). Hooks in `src/rmodels.c`. Converter in separate `dcmesh` repo (`src/dcmesh.c` + shared `src/dcmesh.h`).
+
+## Post-Patch GLdc Utility Work
+
+Additional GLdc changes landed after the original A-E framing:
+
+- Punch-through list blend fix: use source-alpha/inverse-source-alpha to avoid hardware-visible opaque boxes when discard is unreliable.
+- Render-to-texture helpers: `glKosFlushToTexture()` and `glKosTextureData()`.
+- Deferred fog helpers: `glKosQueueFogTableLinear()` and `glKosQueueFogTableFlat()`.
+- Texture conversion OOM guard in `glTexImage2D()`.
+- Limited `USE_SH4ZAM` support in `GL/matrix.c`; broader matrix-stack work remains planned.
